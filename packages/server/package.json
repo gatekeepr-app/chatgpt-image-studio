@@ -1,7 +1,7 @@
 {
   "name": "@opencoredev/loginwithchatgpt-server",
   "version": "0.2.0",
-  "description": "Server handler for Login with ChatGPT: device login, session status, logout, model discovery, and an authenticated Codex responses proxy.",
+  "description": "Server handler for Login with ChatGPT: login, Codex responses, and experimental private WebRTC voice with server-owned tools.",
   "type": "module",
   "license": "MIT",
   "exports": {
@@ -10,6 +10,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./realtime-app-server": {
+      "bun": "./src/realtime-app-server.ts",
+      "types": "./dist/realtime-app-server.d.ts",
+      "import": "./dist/realtime-app-server.js",
+      "default": "./dist/realtime-app-server.js"
     }
   },
   "main": "./dist/index.js",

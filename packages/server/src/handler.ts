@@ -6,18 +6,35 @@ import {
   type CodexResponsesOptions,
   type KeyValueStore,
   type LoginStatus,
+  type ChatGPTRealtimeSessionOptions,
+  type ChatGPTRealtimeAuth,
+  type ChatGPTRealtimeVoiceMode,
   type ReasoningEffort,
   DEFAULT_MODEL,
   ChatGPTAuthError,
   MemoryStore,
   createCodexFetch,
+  createChatGPTRealtimeCall,
   listCodexModels,
+  parseChatGPTRealtimeSessionOptions,
   randomToken,
   resolveConfig,
 } from "@opencoredev/loginwithchatgpt-core";
 import { type CookieOptions, readCookie, serializeCookie } from "./cookies.ts";
 import { sign, unsign } from "./crypto.ts";
 import { SessionManager, type StoredSession } from "./session.ts";
+import {
+  createRealtimeAppServerRoutes,
+  type RealtimeAppServerPolicy,
+} from "./realtime-app-server-routes.ts";
+import { readTextBody } from "./request-body.ts";
+
+export type {
+  RealtimeAppServerConfirmationContext,
+  RealtimeAppServerPolicy,
+  RealtimeAppServerSessionHandle,
+  RealtimeAppServerToolContext,
+} from "./realtime-app-server-routes.ts";
 
 const DEFAULT_BASE_PATH = "/api/chatgpt";
 const DEFAULT_COOKIE_NAME = "lwc_session";
@@ -25,6 +42,7 @@ const DEFAULT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_RESPONSES_BODY_BYTES = 40 * 1024 * 1024;
 const DEFAULT_RESPONSES_RATE_LIMIT = 30;
 const DEFAULT_RESPONSES_RATE_WINDOW_MS = 60 * 1000;
+const DEFAULT_MAX_REALTIME_BODY_BYTES = 256 * 1024;
 const SERVICE_TIER_HEADER = "x-login-with-chatgpt-service-tier";
 const REASONING_EFFORT_HEADER = "x-login-with-chatgpt-reasoning-effort";
 const SERVICE_TIERS = new Set<CodexServiceTier>(["auto", "default", "flex", "priority", "fast"]);
@@ -59,6 +77,32 @@ export interface ResponsesRateLimit {
   store?: KeyValueStore<RateLimitBucket>;
 }
 
+export interface RealtimeProxyPolicy {
+  /** Maximum JSON signaling request size. Defaults to 256 KiB. */
+  maxRequestBytes?: number;
+  /** Private transports the browser may request. Defaults to only `wm`. */
+  allowedTransports?: readonly ("wm" | "vp" | "vps")[];
+  /** Voice modes the browser may request. Unrestricted when omitted. */
+  allowedModes?: readonly ChatGPTRealtimeVoiceMode[];
+  /** Server defaults merged before browser session options. */
+  sessionDefaults?: ChatGPTRealtimeSessionOptions;
+  /**
+   * Supplies a short-lived ChatGPT web-client token for `/wm`. The normal
+   * Codex device-login token is intentionally not reused because OpenAI rejects
+   * it for GPT Live. Resolve this from an encrypted, user-bound web session.
+   */
+  getAuth?: (context: {
+    request: Request;
+    sessionId: string;
+    transport: "wm" | "vp" | "vps";
+  }) => Promise<ChatGPTRealtimeAuth> | ChatGPTRealtimeAuth;
+  /**
+   * Enables the desktop-style app-server route for native GPT Live audio plus
+   * arbitrary server-side application tools.
+   */
+  appServer?: RealtimeAppServerPolicy;
+}
+
 /** Fixed-window rate counter persisted per session id. */
 export interface RateLimitBucket {
   count: number;
@@ -86,6 +130,10 @@ export interface CreateChatGPTHandlerOptions extends ChatGPTConfig, CodexRespons
   defaultModel?: string;
   /** Set `false` to disable the built-in `/responses` proxy. Defaults to `true`. */
   enableResponsesProxy?: boolean;
+  /** Set `false` to disable all built-in Realtime routes. Defaults to `true`. */
+  enableRealtime?: boolean;
+  /** Guardrails and defaults for ChatGPT Realtime signaling. */
+  realtime?: RealtimeProxyPolicy;
   /** Guardrails for the built-in `/responses` proxy. */
   responsesProxy?: ResponsesProxyPolicy;
   /**
@@ -171,8 +219,12 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
   const secret = options.secret ?? createEphemeralSecret();
   const defaultModel = options.defaultModel ?? DEFAULT_MODEL;
   const enableResponsesProxy = options.enableResponsesProxy ?? true;
+  const enableRealtime = options.enableRealtime ?? true;
   const responsesProxy = options.responsesProxy ?? {};
+  const realtime = options.realtime ?? {};
+  const realtimeAppServer = realtime.appServer;
   const maxResponsesBodyBytes = responsesProxy.maxRequestBytes ?? DEFAULT_MAX_RESPONSES_BODY_BYTES;
+  const maxRealtimeBodyBytes = realtime.maxRequestBytes ?? DEFAULT_MAX_REALTIME_BODY_BYTES;
 
   const allowedOrigins = new Set<string>();
   for (const origin of options.allowedOrigins ?? []) {
@@ -228,6 +280,16 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
     if (!signed) return undefined;
     return unsign(signed, secret);
   }
+
+  const realtimeAppServerRoutes = realtimeAppServer
+    ? createRealtimeAppServerRoutes({
+        policy: realtimeAppServer,
+        maxRequestBytes: maxRealtimeBodyBytes,
+        readSessionId,
+        getFreshTokens: (sessionId) => sessions.getFreshTokens(sessionId),
+        preparePayload: prepareRealtimePayload,
+      })
+    : undefined;
 
   async function issueSessionCookie(request: Request, sessionId: string): Promise<string> {
     const signed = await sign(sessionId, secret);
@@ -315,7 +377,10 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
 
   async function handleLogout(request: Request): Promise<Response> {
     const sessionId = await readSessionId(request);
-    if (sessionId) await sessions.delete(sessionId);
+    if (sessionId) {
+      await realtimeAppServerRoutes?.closeOwner(sessionId).catch(() => {});
+      await sessions.delete(sessionId);
+    }
     return json(
       { status: "unauthenticated" satisfies LoginStatus },
       { headers: new Headers({ "Set-Cookie": clearCookie(request) }) },
@@ -426,17 +491,85 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
     }
   }
 
+  async function handleRealtime(request: Request): Promise<Response> {
+    const sessionId = await readSessionId(request);
+    if (!sessionId) return json({ error: "not_authenticated" }, { status: 401 });
+    const payload = await prepareRealtimePayload(request, maxRealtimeBodyBytes);
+    if (payload instanceof Response) return payload;
+    const mergedSession = mergeRealtimeSessionOptions(realtime.sessionDefaults, payload.session) ?? {};
+    const transport = mergedSession.transport ?? "wm";
+    if (!(realtime.allowedTransports ?? ["wm"]).includes(transport)) {
+      return json({ error: "realtime_transport_not_allowed", transport }, { status: 403 });
+    }
+    const mode = mergedSession.voiceMode ?? (transport === "wm" ? "wingman" : transport === "vps" ? "standard" : "advanced");
+    if (realtime.allowedModes && !realtime.allowedModes.includes(mode)) {
+      return json({ error: "realtime_mode_not_allowed", voiceMode: mode }, { status: 403 });
+    }
+
+    try {
+      let realtimeAuth: ChatGPTRealtimeAuth;
+      if (realtime.getAuth) {
+        realtimeAuth = await realtime.getAuth({ request, sessionId, transport });
+      } else {
+        if (transport === "wm") {
+          return json(
+            {
+              error: "realtime_web_auth_required",
+              message: "GPT Live `/wm` requires realtime.getAuth backed by a server-side ChatGPT web session.",
+            },
+            { status: 501 },
+          );
+        }
+        const tokens = await sessions.getFreshTokens(sessionId);
+        if (!tokens?.accessToken || !tokens.accountId) {
+          return json({ error: "not_authenticated" }, { status: 401 });
+        }
+        realtimeAuth = { accessToken: tokens.accessToken, accountId: tokens.accountId };
+      }
+
+      const answer = await createChatGPTRealtimeCall({
+        config,
+        getAuth: () => realtimeAuth,
+        sdp: payload.sdp,
+        session: mergedSession,
+        signal: request.signal,
+      });
+      return new Response(answer, {
+        status: 201,
+        headers: { "content-type": "application/sdp", "cache-control": "no-store" },
+      });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        return json({ error: "invalid_realtime_request", message: error.message }, { status: 400 });
+      }
+      if (error instanceof ChatGPTAuthError) {
+        return json(
+          { error: error.code, message: error.message, status: error.status },
+          { status: error.status ?? 502 },
+        );
+      }
+      throw error;
+    }
+  }
+
   const routes: Record<string, Partial<Record<string, (request: Request) => Promise<Response>>>> = {
     "/login": { POST: handleLogin },
     "/status": { GET: handleStatus },
     "/session": { GET: handleSession },
     "/logout": { POST: handleLogout },
+    ...(enableRealtime ? { "/realtime": { POST: handleRealtime } } : {}),
+    ...(enableRealtime && realtimeAppServerRoutes
+      ? { "/realtime/app-server": { POST: realtimeAppServerRoutes.start } }
+      : {}),
     ...(enableResponsesProxy ? { "/responses": { POST: handleResponses }, "/models": { GET: handleModels } } : {}),
   };
 
   const handler = async (request: Request): Promise<Response> => {
     const route = matchRoute(new URL(request.url).pathname, basePath);
-    const methods = route === undefined ? undefined : routes[route];
+    let methods = route === undefined ? undefined : routes[route];
+    if (!methods && enableRealtime && realtimeAppServerRoutes && route) {
+      methods = realtimeAppServerRoutes.methods(route);
+    }
     if (!methods) return new Response("Not found", { status: 404 });
     const method = methods[request.method];
     if (!method) {
@@ -552,16 +685,8 @@ async function prepareResponsesPayload(
     reasoningEffort?: ReasoningEffort;
   },
 ): Promise<string | Response> {
-  const contentLength = request.headers.get("content-length");
-  if (contentLength && Number(contentLength) > options.maxRequestBytes) {
-    return json(
-      { error: "responses_request_too_large", maxRequestBytes: options.maxRequestBytes },
-      { status: 413 },
-    );
-  }
-
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > options.maxRequestBytes) {
+  const text = await readTextBody(request, options.maxRequestBytes);
+  if (text === undefined) {
     return json(
       { error: "responses_request_too_large", maxRequestBytes: options.maxRequestBytes },
       { status: 413 },
@@ -632,6 +757,52 @@ function isModelAllowed(model: string, allowedModels: ResponsesProxyPolicy["allo
   if (!allowedModels) return true;
   if (typeof allowedModels === "function") return allowedModels(model);
   return allowedModels.includes(model);
+}
+
+async function prepareRealtimePayload(
+  request: Request,
+  maxRequestBytes: number,
+): Promise<{ sdp: string; session?: ChatGPTRealtimeSessionOptions } | Response> {
+  const text = await readTextBody(request, maxRequestBytes);
+  if (text === undefined) {
+    return json({ error: "realtime_request_too_large", maxRequestBytes }, { status: 413 });
+  }
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!isRecord(parsed) || typeof parsed["sdp"] !== "string" || !parsed["sdp"].trim()) {
+      return json(
+        { error: "invalid_realtime_request", message: "Expected a non-empty `sdp` string." },
+        { status: 400 },
+      );
+    }
+    const rawSession = parsed["session"];
+    return {
+      sdp: parsed["sdp"],
+      session: rawSession === undefined
+        ? undefined
+        : parseChatGPTRealtimeSessionOptions(rawSession),
+    };
+  } catch (error) {
+    return json(
+      {
+        error: "invalid_realtime_request",
+        message: error instanceof TypeError ? error.message : "Expected a JSON object body.",
+      },
+      { status: 400 },
+    );
+  }
+}
+
+function mergeRealtimeSessionOptions(
+  defaults?: ChatGPTRealtimeSessionOptions,
+  requested?: ChatGPTRealtimeSessionOptions,
+): ChatGPTRealtimeSessionOptions | undefined {
+  if (!defaults) return requested;
+  if (!requested) return defaults;
+  return {
+    ...defaults,
+    ...requested,
+  };
 }
 
 function originNotAllowed(origin: string): Response {
