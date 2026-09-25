@@ -229,3 +229,11 @@ Result:
 - `examples/demo/src/frontend.tsx`: album loads on mount; generated images POST to `/api/album` (persisted cards get remote id + storage URL, instant data-URL display/download retained); delete removes server-side too; 501 anywhere degrades to in-memory with a notice line.
 - Verified without a deployment: page 200 with no build errors; `GET /api/album` returns the 501 payload.
 - Remaining user steps: `bunx convex login`, `bunx convex dev` in `examples/demo` (deploys schema/functions, prints URL), then `bun run demo` with `CONVEX_URL` set. Documented in `examples/demo/README.md`.
+
+## Session 2026-09-25 continued: audit cuts + pnpm + push
+
+- Ran over-engineering audit (whole tree). Implemented all but the headline cut: kept `examples/image-studio` (Next app is the Vercel-hostable surface, see below).
+- Single manager = pnpm: deleted `bun.lock`; inter-package deps `^0.2.0` → `workspace:*` (the range kept resolving to the published 0.2.0 copy and broke tests); `link-workspace-packages: true` added; release script reworked to `pnpm --filter` publish (pnpm rewrites `workspace:*` on publish); CI uses pnpm install (Bun kept as runtime); Dockerfile is multi-stage (node+pnpm install, oven/bun runtime).
+- Cuts: deleted CSS-masquerading `login-cli.ts` (+ stale README line); dropped unused `ai`/`@ai-sdk/openai` from demo deps; `node:util parseArgs` in image-cli; removed dead `AlbumIcon`/`shortAccount`; one generic header validator in handler; shared `POPUP_FEATURES`; merged `RemoteImage` into `AlbumImage`.
+- Also: `/api/album` session-gated (401); `.next/` gitignored; `esbuild` added to pnpm `allowBuilds` (was a literal placeholder).
+- Verified: 21/21 handler tests, demo boots with clean bundle. Committed and pushed to public `gatekeepr-app/chatgpt-image-studio` (remote `studio`; `origin` still upstream).
