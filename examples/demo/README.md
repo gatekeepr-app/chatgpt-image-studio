@@ -49,8 +49,10 @@ bunx convex login
 bunx convex dev
 ```
 
-`convex dev` prints your deployment URL and writes it to `.env.local`.
-Then run the demo with that URL visible (new terminal):
+`convex dev` prints your deployment URL. Persist it for the demo by copying
+the root `.env.example` to `.env` and pasting the URL there — `bun run demo`
+starts from the repo root, so Bun auto-loads the root `.env` (which is
+gitignored; only `.env.example` is committed). One-off alternative:
 
 ```powershell
 $env:CONVEX_URL="https://YOUR-DEPLOYMENT.convex.cloud"; bun run demo
