@@ -221,6 +221,14 @@ Result:
 - Pre-existing, unrelated: `packages/ai/test/provider.test.ts` image test expects an outdated request shape (locked SDK now sends `reasoning.effort`, `text.verbosity`, etc.).
 - `bun run dev` / `docs` scripts are untouched and still broken on Windows (bash-style `PORT=${...}` prefix; `next` not installed in `docs/`).
 
+## Session 2026-09-25 continued: Vercel is live
+
+- Took over the Vercel account (`productgatekeepr-2878`, team `gatekeeprs-projects`) via CLI + `vercel api`. Three projects existed; only `chatgpt-image-studio-image-studio` is correctly configured (Next.js, root `examples/image-studio`).
+- The other two point at the Bun demo and can never build — left alone, ignore them.
+- Root cause of the repeat failure: dashboard Build Command was pinned to bare `next build --webpack`, bypassing the package.json fix. Patched it via API to `tsc -p ../../packages/core/tsconfig.build.json && next build --webpack`, redeployed: READY in 45s.
+- Live and verified (HTTP 200, Tailwind CSS + app chunks served): https://chatgpt-image-studio-image-studio.vercel.app
+- Standing caveats unchanged: local-file auth/album state won't survive serverless; Convex wiring for the Next side is still open.
+
 ## Session 2026-09-25 continued: Vercel deploy fixes
 
 - Vercel initially tried to build the Bun demo (`PARSE_ERROR` on `src/index.html`): undeployable there, no Bun runtime. Deploy unit is `examples/image-studio` (Root Directory), build `next build --webpack`.
