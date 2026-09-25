@@ -10,7 +10,7 @@
     "dev": "PORT=${PORT:-3001} bun run --cwd docs dev",
     "typecheck": "tsc --build --pretty",
     "test": "bun test packages",
-    "demo": "bun --cwd examples/demo run dev",
+    "demo": "bun --hot run examples/demo/src/server.ts",
     "docs": "PORT=${PORT:-3001} bun run --cwd docs dev",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
     "build": "tsc -p packages/core/tsconfig.build.json && tsc -p packages/server/tsconfig.build.json && tsc -p packages/react/tsconfig.build.json && tsc -p packages/ai/tsconfig.build.json",

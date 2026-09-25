@@ -16,6 +16,7 @@ export {
 export { ChatGPTProxyError, createChatGPTProxyProvider, type CreateChatGPTProxyOptions } from "./proxy.ts";
 export {
   ChatGPTImageError,
+  createChatGPTImagesClient,
   type ChatGPTEditImageOptions,
   type ChatGPTGenerateImageOptions,
   type ChatGPTGeneratedImage,

@@ -27,6 +27,15 @@ bun add @opencoredev/loginwithchatgpt-core @opencoredev/loginwithchatgpt-server 
 
 npm and pnpm work too. Everything ships as ESM with types for Node 18+.
 
+## Node/Next.js image studio
+
+```bash
+pnpm --dir examples/image-studio install
+pnpm --dir examples/image-studio run dev
+```
+
+Open http://localhost:3000, sign in with ChatGPT, choose a model, generate images, and organize them into albums. Local tokens stay in `examples/image-studio/.image-studio-tokens.json`; generated images and albums stay under `examples/image-studio/out`.
+
 ## Packages
 
 | Package | Does |

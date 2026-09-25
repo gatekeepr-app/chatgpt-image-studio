@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot run src/server.ts",
+    "image": "node src/image-cli.ts",
     "start": "bun run src/server.ts"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "@opencoredev/loginwithchatgpt-server": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "ai": "^7",
+    "convex": "^1.46.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   }

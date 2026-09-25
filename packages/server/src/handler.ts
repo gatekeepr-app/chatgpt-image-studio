@@ -401,7 +401,7 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
           { status: error.status ?? 502 },
         );
       }
-      throw error;
+      return json({ error: "models_request_failed", detail: (error as Error).message }, { status: 500 });
     }
   }
 
@@ -460,7 +460,15 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
           body,
           signal: request.signal,
         });
-      let upstream = await proxyResponses(policyResult);
+      let upstream: Response;
+      try {
+        upstream = await proxyResponses(policyResult);
+      } catch (proxyError) {
+        return json(
+          { error: "responses_request_failed", detail: (proxyError as Error).message },
+          { status: 502 },
+        );
+      }
       // Surface (and log) upstream errors instead of forwarding an empty/opaque
       // body, which the AI SDK reports only as a generic "No output" error.
       if (!upstream.ok) {
@@ -487,7 +495,7 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
       if (error instanceof ChatGPTAuthError) {
         return json({ error: error.code, message: error.message }, { status: 502 });
       }
-      throw error;
+      return json({ error: "responses_request_failed", detail: (error as Error).message }, { status: 500 });
     }
   }
 
@@ -548,7 +556,7 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
           { status: error.status ?? 502 },
         );
       }
-      throw error;
+      return json({ error: "realtime_request_failed", detail: (error as Error).message }, { status: 500 });
     }
   }
 
@@ -582,7 +590,11 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
       const blocked = checkOrigin(request);
       if (blocked) return blocked;
     }
-    return method(request);
+    try {
+      return method(request);
+    } catch (error) {
+      return json({ error: "internal_server_error", detail: (error as Error).message }, { status: 500 });
+    }
   };
 
   async function dangerouslyGetTokens(

@@ -167,23 +167,21 @@ async function runImageRequest(
     tool["input_image_mask"] = { image_url: await toImageUrl(options.mask) };
   }
 
-  const input = options.images
-    ? [
-        {
-          role: "user",
-          content: [
-            { type: "input_text", text: options.prompt },
-            ...(await Promise.all(
-              options.images.map(async (image) => ({
-                type: "input_image",
-                image_url: await toImageUrl(image),
-                detail: image.detail ?? "auto",
-              })),
-            )),
-          ],
-        },
-      ]
-    : options.prompt;
+  const input = [
+    {
+      role: "user",
+      content: [
+        { type: "input_text", text: options.prompt },
+        ...(await Promise.all(
+          (options.images ?? []).map(async (image) => ({
+            type: "input_image",
+            image_url: await toImageUrl(image),
+            detail: image.detail ?? "auto",
+          })),
+        )),
+      ],
+    },
+  ];
 
   const headers = new Headers(client.headers);
   headers.set("content-type", "application/json");

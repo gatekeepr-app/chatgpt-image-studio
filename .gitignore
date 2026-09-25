@@ -27,6 +27,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 
+# next.js build output
+.next
+
 # IntelliJ based IDEs
 .idea
 
@@ -39,3 +42,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # local demo sessions
 .lwc-demo-session.json
 examples/demo/.lwc-demo-session.json
+examples/demo/.lwc-image-tokens.json
+examples/image-studio/.image-studio-tokens.json
+examples/image-studio/.image-studio-device.json
