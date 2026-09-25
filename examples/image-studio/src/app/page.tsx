@@ -114,8 +114,8 @@ export default function Page() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Generation failed.");
       setImages((current) => {
-        const newItems = data.images.map(() => ({
-          id: crypto.randomUUID(),
+        const newItems = (data.images as Array<{ id: string }>).map((record) => ({
+          id: record.id,
           albumId,
           prompt,
           model: selectedModel,
