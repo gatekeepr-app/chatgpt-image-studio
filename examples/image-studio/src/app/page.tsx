@@ -301,12 +301,3 @@ export default function Page() {
   );
 }
 
-/* ----------------------------- AlbumIcon ---------------------------- */
-function AlbumIcon({ editsCount = 0 }: { editsCount?: number }) {
-  return <span className="w-3 h-3 rounded bg-gray-600" />;
-}
-
-/* ----------------------------- shortAccount ---------------------------- */
-function shortAccount(accountId: string): string {
-  return accountId ? `${accountId.slice(0, 8)}...${accountId.slice(-4)}` : "Connected";
-}

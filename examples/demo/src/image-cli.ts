@@ -17,6 +17,7 @@ import {
 } from "../../../packages/ai/src/images.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { parseArgs as parseArgv } from "node:util";
 
 interface CliOptions {
   prompt: string;
@@ -70,23 +71,20 @@ for (const [index, image] of result.data.entries()) {
 }
 
 function parseArgs(args: string[]): CliOptions {
-  const values: Record<string, string> = {};
-  const promptParts: string[] = [];
+  const { values, positionals } = parseArgv({
+    args,
+    allowPositionals: true,
+    options: {
+      out: { type: "string" },
+      model: { type: "string" },
+      size: { type: "string" },
+      format: { type: "string" },
+      quality: { type: "string" },
+      n: { type: "string" },
+    },
+  });
 
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-    if (arg.startsWith("--")) {
-      const key = arg.slice(2);
-      const value = args[i + 1];
-      if (!value || value.startsWith("--")) throw new Error(`Missing value for --${key}.`);
-      values[key] = value;
-      i += 1;
-    } else {
-      promptParts.push(arg);
-    }
-  }
-
-  const prompt = promptParts.join(" ").trim();
+  const prompt = positionals.join(" ").trim();
   if (!prompt) {
     throw new Error(
       'Usage: pnpm --dir examples/demo run image "prompt" [--out out/images] [--model gpt-5.5] [--size 1024x1024] [--format png|jpeg|webp] [--quality low|medium|high|auto] [--n 2]',

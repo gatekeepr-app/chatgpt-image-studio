@@ -9,13 +9,11 @@
     "start": "bun run src/server.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4",
     "@opencoredev/loginwithchatgpt-ai": "workspace:*",
     "@opencoredev/loginwithchatgpt-core": "workspace:*",
     "@opencoredev/loginwithchatgpt-react": "workspace:*",
     "@opencoredev/loginwithchatgpt-server": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
-    "ai": "^7",
     "convex": "^1.46.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

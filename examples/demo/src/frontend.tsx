@@ -46,7 +46,7 @@ type RemoteImage = {
   model: string;
   size: string;
   revisedPrompt?: string;
-  url: string | null;
+  url?: string | null;
 };
 
 async function loadAlbum(): Promise<{ images: RemoteImage[]; configured: boolean }> {
@@ -81,17 +81,11 @@ async function deleteFromAlbum(id: string): Promise<void> {
   if (!res.ok) throw new Error("Could not delete the image.");
 }
 
-type AlbumImage = {
-  id: string;
+interface AlbumImage extends RemoteImage {
   remoteId?: string;
-  prompt: string;
-  model: string;
-  size: string;
   dataUrl?: string;
-  url?: string | null;
-  revisedPrompt?: string;
   ready: boolean;
-};
+}
 
 const PROMPT_SUGGESTIONS = [
   "A cinematic product shot of a glass keyboard",

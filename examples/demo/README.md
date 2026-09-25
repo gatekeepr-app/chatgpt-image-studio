@@ -23,12 +23,6 @@ Optional local secret:
 LWC_SECRET="$(openssl rand -hex 32)" bun run demo
 ```
 
-Headless CLI example:
-
-```bash
-bun --cwd examples/demo run src/login-cli.ts "Explain promises in one line"
-```
-
 Node-based image generation workflow:
 
 ```bash

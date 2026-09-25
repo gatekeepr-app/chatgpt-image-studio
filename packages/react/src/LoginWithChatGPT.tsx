@@ -3,6 +3,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { ChatGPTMark, Spinner } from "./icons.tsx";
 import {
+  POPUP_FEATURES,
   type UseLoginWithChatGPTOptions,
   type UseLoginWithChatGPTResult,
   useLoginWithChatGPT,
@@ -40,7 +41,6 @@ export interface LoginWithChatGPTConsentOptions {
 
 const STYLE_ID = "lwc-styles";
 const OPENAI_ACTIVE_SESSIONS_HELP_URL = "https://help.openai.com/en/articles/20001257-managing-active-sessions-in-chatgpt";
-const POPUP_FEATURES = "popup=yes,width=520,height=680,menubar=no,toolbar=no,location=yes";
 
 const STYLESHEET = `
 .lwc-root{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:inline-flex;flex-direction:column;gap:12px;align-items:stretch;min-width:260px}

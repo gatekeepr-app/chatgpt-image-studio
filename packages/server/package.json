@@ -30,7 +30,7 @@
     "prepublishOnly": "rm -rf dist && bun run build"
   },
   "dependencies": {
-    "@opencoredev/loginwithchatgpt-core": "^0.2.0"
+    "@opencoredev/loginwithchatgpt-core": "workspace:*"
   },
   "keywords": [
     "chatgpt",

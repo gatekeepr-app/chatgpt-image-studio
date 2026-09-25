@@ -438,9 +438,9 @@ export function createChatGPTHandler(options: CreateChatGPTHandlerOptions = {}):
       getAuth: () => ({ accessToken: tokens.accessToken, accountId: tokens.accountId as string }),
     });
 
-    const serviceTier = readServiceTierHeader(request);
+    const serviceTier = readEnumHeader(request, SERVICE_TIER_HEADER, SERVICE_TIERS, "invalid_service_tier", "serviceTier");
     if (serviceTier instanceof Response) return serviceTier;
-    const reasoningEffort = readReasoningEffortHeader(request);
+    const reasoningEffort = readEnumHeader(request, REASONING_EFFORT_HEADER, REASONING_EFFORTS, "invalid_reasoning_effort", "reasoningEffort");
     if (reasoningEffort instanceof Response) return reasoningEffort;
 
     const policyResult = await prepareResponsesPayload(request, {
@@ -730,20 +730,18 @@ async function prepareResponsesPayload(
   }
 }
 
-function readServiceTierHeader(request: Request): CodexServiceTier | Response | undefined {
-  const value = request.headers.get(SERVICE_TIER_HEADER);
+function readEnumHeader<T extends string>(
+  request: Request,
+  header: string,
+  allowed: ReadonlySet<T>,
+  errorCode: string,
+  valueKey: string,
+): T | Response | undefined {
+  const value = request.headers.get(header);
   if (!value) return undefined;
-  const tier = value.trim().toLowerCase();
-  if (SERVICE_TIERS.has(tier as CodexServiceTier)) return tier as CodexServiceTier;
-  return json({ error: "invalid_service_tier", serviceTier: value }, { status: 400 });
-}
-
-function readReasoningEffortHeader(request: Request): ReasoningEffort | Response | undefined {
-  const value = request.headers.get(REASONING_EFFORT_HEADER);
-  if (!value) return undefined;
-  const effort = value.trim().toLowerCase();
-  if (REASONING_EFFORTS.has(effort as ReasoningEffort)) return effort as ReasoningEffort;
-  return json({ error: "invalid_reasoning_effort", reasoningEffort: value }, { status: 400 });
+  const normalized = value.trim().toLowerCase();
+  if (allowed.has(normalized as T)) return normalized as T;
+  return json({ error: errorCode, [valueKey]: value }, { status: 400 });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

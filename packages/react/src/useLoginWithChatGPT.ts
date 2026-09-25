@@ -53,7 +53,7 @@ export interface UseLoginWithChatGPTResult extends LoginWithChatGPTState {
 }
 
 /** Window features that make `window.open` produce a popup window, not a tab. */
-const POPUP_FEATURES = "popup=yes,width=520,height=680,menubar=no,toolbar=no,location=yes";
+export const POPUP_FEATURES = "popup=yes,width=520,height=680,menubar=no,toolbar=no,location=yes";
 
 interface StatusResponse {
   status: LoginStatus;
