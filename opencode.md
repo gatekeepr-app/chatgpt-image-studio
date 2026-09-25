@@ -221,6 +221,13 @@ Result:
 - Pre-existing, unrelated: `packages/ai/test/provider.test.ts` image test expects an outdated request shape (locked SDK now sends `reasoning.effort`, `text.verbosity`, etc.).
 - `bun run dev` / `docs` scripts are untouched and still broken on Windows (bash-style `PORT=${...}` prefix; `next` not installed in `docs/`).
 
+## Session 2026-09-25 continued: Vercel deploy fixes
+
+- Vercel initially tried to build the Bun demo (`PARSE_ERROR` on `src/index.html`): undeployable there, no Bun runtime. Deploy unit is `examples/image-studio` (Root Directory), build `next build --webpack`.
+- Fixed real blockers found via the failed build log: Tailwind installed properly (page is 100% utilities, engine was missing); 426-line orphan stylesheet replaced; `generate()` now uses server-returned ids; `packageManager` pinned to pnpm@11.9.0.
+- Fresh-clone failure reproduced: `packages/*/dist` is gitignored, so Next type-check/webpack fail resolving `@opencoredev` exports on Vercel (local dist masked it). Image-studio `build` now emits core dist first; verified by wiping all dist dirs and rebuilding clean.
+- Pushed; Vercel auto-deploys `main` on the correctly configured `chatgpt-image-studio-image-studio` project.
+
 ## Session 2026-09-25 continued: Convex album persistence (single-user)
 
 - Installed `convex@1.46.0` in `examples/demo` (`convex` binary available via `bunx`).
