@@ -238,7 +238,7 @@ export default function Page() {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <p className="text-gray-500">{selectedAlbum?.name ?? "Main"}</p>
-            <h1 className="text-2xl">{visible.length} image{visible.length === 1 ? "" : "s"}</h1>
+            <h1 className="text-2xl text-gray-900">{visible.length} image{visible.length === 1 ? "" : "s"}</h1>
           </div>
           <div className="flex items-center">
             {authenticated ? (
@@ -297,6 +297,40 @@ export default function Page() {
           ))}
         </div>
       </div>
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-6"
+          onClick={() => setPreviewImage(null)}
+        >
+          <figure
+            className="flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-gray-800 bg-black p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={`/api/images/${previewImage.id}`}
+              alt={previewImage.prompt}
+              className="max-h-[70vh] w-full rounded-lg object-contain"
+            />
+            <figcaption className="text-sm text-gray-300">{previewImage.prompt}</figcaption>
+            <div className="flex gap-3 text-sm">
+              <a
+                href={`/api/images/${previewImage.id}`}
+                download={`image-${previewImage.id}.png`}
+                className="text-blue-400 underline"
+              >
+                Download
+              </a>
+              <button
+                className="cursor-pointer text-gray-400"
+                onClick={() => setPreviewImage(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </figure>
+        </div>
+      )}
     </main>
   );
 }
