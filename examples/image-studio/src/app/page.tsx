@@ -166,8 +166,8 @@ export default function Page() {
   const canGenerate = authenticated && Boolean(model) && !busy;
 
   return (
-    <main className="flex min-h-screen">
-      <aside className="w-64 bg-black text-white flex flex-col py-8">
+    <main className="flex min-h-screen flex-col lg:flex-row">
+      <aside className="w-full flex-none bg-black text-white flex flex-col py-8 lg:w-64">
         <div className="text-center text-xl font-bold mb-8">Studio</div>
         <div className="space-y-4">
           <div>
