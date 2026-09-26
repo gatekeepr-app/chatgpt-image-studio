@@ -221,6 +221,12 @@ Result:
 - Pre-existing, unrelated: `packages/ai/test/provider.test.ts` image test expects an outdated request shape (locked SDK now sends `reasoning.effort`, `text.verbosity`, etc.).
 - `bun run dev` / `docs` scripts are untouched and still broken on Windows (bash-style `PORT=${...}` prefix; `next` not installed in `docs/`).
 
+## Session 2026-09-25 continued: mobile layout + render audit
+
+- User reported the deployed studio unstyled; HTTP checks (200 page + 200 populated CSS) kept passing, so ran headless Chromium (Playwright, cached browsers) against production: desktop renders correctly, zero console errors — but the 390px mobile shot showed the fixed w-64 sidebar crushing content with overlapping headings (this machine has no desktop browser installed; user is evidently on mobile).
+- Fix: `flex-col` below `lg`, original row layout at `lg` and up (2 classes). Also fixed while there: invisible h1 on the light panel (`text-gray-900`), dead View button (wired a Tailwind lightbox; state was set but never rendered), missing favicon (`app/icon.svg`).
+- Verified via screenshot before/after on live production, not just HTTP codes.
+
 ## Session 2026-09-25 continued: Vercel is live
 
 - Took over the Vercel account (`productgatekeepr-2878`, team `gatekeeprs-projects`) via CLI + `vercel api`. Three projects existed; only `chatgpt-image-studio-image-studio` is correctly configured (Next.js, root `examples/image-studio`).
